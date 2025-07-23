@@ -1,0 +1,52 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Dependency directories
+node_modules
+venv/
+.env
+.env.*
+
+# Build output
+dist
+dist-ssr
+build
+__pycache__/
+*.pyc
+
+# IDE/editor settings
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# System files
+Thumbs.db
+ehthumbs.db
+desktop.ini
+
+# Python virtual environment and artifacts
+*.pkl
+*.pth
+models/
+face_recognition_flask/models/
+face_recognition_flask/__pycache__/
+face_recognition_flask/*.pyc
+
+# Git
+*.orig
+
+# Others
+coverage/
+.cache/
