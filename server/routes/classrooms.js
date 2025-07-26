@@ -3,7 +3,7 @@ import multer from 'multer';
 import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
 import Classroom from '../models/Classroom.js';
-import User from '../models/User.js';
+import User from '../models/User.js'; 
 import FormData from 'form-data';
 
 const router = express.Router();
@@ -22,7 +22,7 @@ const upload = multer({
     }
 });
 
-const FLASK_API_URL = 'http://localhost:8000';
+const FLASK_API_URL = process.env.PYTHON_API_URL; 
 
 // Create a new classroom
 router.post('/', async (req, res) => {
@@ -142,7 +142,6 @@ router.post('/:classroomId/upload-group-photo', upload.single('file'), async (re
             return res.status(404).json({ message: 'Classroom not found' });
         }
 
-        // Prepare FormData for Flask API
         const formData = new FormData();
         formData.append('file', req.file.buffer, {
             filename: req.file.originalname,
@@ -152,7 +151,7 @@ router.post('/:classroomId/upload-group-photo', upload.single('file'), async (re
         // Call Flask API for face detection
         try {
             const flaskResponse = await axios.post(
-                `http://localhost:8000/classroom/${classroomId}/detect_faces`,
+                `${FLASK_API_URL}/classroom/${classroomId}/detect_faces`,
                 formData,
                 {
                     headers: {
@@ -220,7 +219,7 @@ router.post('/:classroomId/assign-students', async (req, res) => {
         // Call Flask API to assign students
         try {
             const flaskResponse = await axios.post(
-                `http://localhost:8000/classroom/${classroomId}/assign_roll_numbers`,
+                `${FLASK_API_URL}/classroom/${classroomId}/assign_roll_numbers`,
                 { assignments },
                 {
                     headers: { 'Content-Type': 'application/json' },
@@ -290,7 +289,7 @@ router.post('/:classroomId/train-model', async (req, res) => {
         // Call Flask API to train model
         try {
             const flaskResponse = await axios.post(
-                `http://localhost:8000/classroom/${classroomId}/train_model`,
+                `${FLASK_API_URL}/classroom/${classroomId}/train_model`,
                 {},
                 {
                     headers: { 'Content-Type': 'application/json' },
