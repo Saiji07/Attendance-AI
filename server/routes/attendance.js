@@ -3,16 +3,15 @@ import multer from 'multer';
 import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
 import Classroom from '../models/Classroom.js';
-import User from '../models/User.js';
-import FormData from 'form-data'; // Import FormData for sending files
+import User from '../models/User.js'; // CORRECTED: Lowercase 'user.js'
+import FormData from 'form-data';
 
 const router = express.Router();
 
-// Configure multer for file uploads (memoryStorage is good for directly using buffer)
 const storage = multer.memoryStorage();
 const upload = multer({
     storage,
-    limits: { fileSize: 50 * 1024 * 1024 }, // 50MB limit
+    limits: { fileSize: 50 * 1024 * 1024 },
     fileFilter: (req, file, cb) => {
         if (file.mimetype.startsWith('image/')) {
             cb(null, true);
@@ -22,7 +21,7 @@ const upload = multer({
     }
 });
 
-const FLASK_API_URL = process.env.PYTHON_API_URL; // From your .env
+const FLASK_API_URL = process.env.PYTHON_API_URL;
 
 // Take attendance
 router.post('/:classroomId/take', upload.single('file'), async (req, res) => {
@@ -53,9 +52,7 @@ router.post('/:classroomId/take', upload.single('file'), async (req, res) => {
             return res.status(400).json({ message: 'Model not trained yet. Please train the model first.' });
         }
 
-        // --- NEW: Prepare FormData for Flask API ---
         const formData = new FormData();
-        // Append the image buffer directly. Multer memoryStorage provides req.file.buffer
         formData.append('file', req.file.buffer, {
             filename: req.file.originalname,
             contentType: req.file.mimetype,
@@ -63,38 +60,37 @@ router.post('/:classroomId/take', upload.single('file'), async (req, res) => {
 
         // Call Flask API for attendance taking (recognition)
         try {
+            // --- THIS IS THE CORRECTED PART ---
             const flaskResponse = await axios.post(
-                `http://localhost:8000/classroom/${classroomId}/recognize_faces`, // Updated Flask endpoint
+                `${FLASK_API_URL}/classroom/${classroomId}/recognize_faces`, // Use the environment variable
                 formData,
                 {
                     headers: {
-                        ...formData.getHeaders(), // Important for FormData
+                        ...formData.getHeaders(),
                     },
                     timeout: 60000 // 1 minute timeout
                 }
             );
 
-            const recognitionData = flaskResponse.data; // This is the data from Flask
+            const recognitionData = flaskResponse.data;
             const recognizedFaces = recognitionData.recognized_faces || [];
-            const resultImageUrl = recognitionData.image_url; // Path to the annotated image from Flask
+            const resultImageUrl = recognitionData.image_url;
 
             const sessionId = uuidv4().substring(0, 8);
             const attendanceResults = [];
-            const presentRollNumbers = new Set(); // To track unique presents in this session
+            const presentRollNumbers = new Set();
 
             for (const face of recognizedFaces) {
-                // Ensure roll_number is not 'Unknown' and is unique for this session
                 if (face.roll_number && face.roll_number !== 'Unknown' && !presentRollNumbers.has(face.roll_number)) {
                     attendanceResults.push({
                         rollNumber: face.roll_number,
                         confidence: face.confidence,
                         bbox: face.bbox,
-                        status: 'present', // Assuming recognized means present
-                        recognizedFaceImageUrl: `${FLASK_API_URL}${face.face_image_url}` // Full URL from Flask
+                        status: 'present',
+                        recognizedFaceImageUrl: `${FLASK_API_URL}${face.face_image_url}`
                     });
                     presentRollNumbers.add(face.roll_number);
                 } else if (face.roll_number === 'Unknown') {
-                    // Optionally, store unknown faces
                     attendanceResults.push({
                         rollNumber: 'Unknown',
                         confidence: face.confidence,
@@ -105,31 +101,27 @@ router.post('/:classroomId/take', upload.single('file'), async (req, res) => {
                 }
             }
 
-            // Determine absent students by comparing classroom.students with presentRollNumbers
-            // NOTE: classroom.students should contain objects with a `rollNumber` property
             const absentCount = classroom.students.filter(student => !presentRollNumbers.has(student.rollNumber)).length;
             const presentCount = presentRollNumbers.size;
-
 
             const attendanceSession = {
                 sessionId,
                 date: new Date(),
-                totalStudents: classroom.students.length, // Use actual student count from your Classroom model
+                totalStudents: classroom.students.length,
                 presentCount: presentCount,
                 absentCount: absentCount,
-                attendanceImage: `${FLASK_API_URL}${resultImageUrl}`, // Full URL to the annotated image
+                attendanceImage: `${FLASK_API_URL}${resultImageUrl}`,
                 attendanceResults: attendanceResults,
                 createdAt: new Date()
             };
 
-            // Add to classroom
             classroom.attendanceSessions.push(attendanceSession);
             await classroom.save();
 
             res.json({
                 message: 'Attendance recorded successfully',
                 session: attendanceSession,
-                resultImage: attendanceSession.attendanceImage // Use the full URL directly
+                resultImage: attendanceSession.attendanceImage
             });
         } catch (flaskError) {
             console.error('Flask API error during attendance recognition:', flaskError.response ? flaskError.response.data : flaskError.message);
@@ -144,7 +136,7 @@ router.post('/:classroomId/take', upload.single('file'), async (req, res) => {
     }
 });
 
-// Get attendance history (no changes needed as it reads from MongoDB)
+// Get attendance history (no changes needed)
 router.get('/:classroomId/history', async (req, res) => {
     try {
         const { userId } = req.auth;
@@ -166,7 +158,6 @@ router.get('/:classroomId/history', async (req, res) => {
             return res.status(404).json({ message: 'Classroom not found' });
         }
 
-        // Get paginated attendance sessions
         const skip = (page - 1) * limit;
         const sessions = classroom.attendanceSessions
             .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
@@ -191,7 +182,7 @@ router.get('/:classroomId/history', async (req, res) => {
     }
 });
 
-// Get attendance analytics (no changes needed as it reads from MongoDB)
+// Get attendance analytics (no changes needed)
 router.get('/:classroomId/analytics', async (req, res) => {
     try {
         const { userId } = req.auth;
@@ -224,29 +215,22 @@ router.get('/:classroomId/analytics', async (req, res) => {
             });
         }
 
-        // Calculate average attendance
         const totalPresent = sessions.reduce((sum, session) => sum + session.presentCount, 0);
-        // Corrected calculation for average attendance to use classroom.students.length
         const averageAttendance = (totalSessions > 0 && classroom.students.length > 0)
             ? (totalPresent / (totalSessions * classroom.students.length)) * 100
             : 0;
 
-
-        // Get attendance trend (last 10 sessions)
         const attendanceTrend = sessions
             .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
             .slice(-10)
             .map(session => ({
                 date: session.createdAt,
-                // Ensure classroom.students.length is used consistently
                 percentage: (classroom.students.length > 0) ? (session.presentCount / classroom.students.length) * 100 : 0
             }));
 
-        // Calculate individual student attendance
         const studentAttendance = classroom.students.map(student => {
             const presentCount = sessions.reduce((count, session) => {
                 const studentRecord = session.attendanceResults.find(
-                    // Ensure rollNumber comparison matches how it's stored
                     result => result.rollNumber === student.rollNumber && result.status === 'present'
                 );
                 return count + (studentRecord ? 1 : 0);
@@ -254,7 +238,7 @@ router.get('/:classroomId/analytics', async (req, res) => {
 
             return {
                 rollNumber: student.rollNumber,
-                name: student.name, // Assuming student object in classroom.students has a 'name' field
+                name: student.name,
                 presentCount,
                 totalSessions,
                 percentage: totalSessions > 0 ? (presentCount / totalSessions) * 100 : 0
