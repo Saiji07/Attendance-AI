@@ -1,3 +1,6 @@
+
+import dotenv from 'dotenv';
+dotenv.config();
 import express from 'express';
 import multer from 'multer';
 import axios from 'axios';
@@ -147,7 +150,8 @@ router.post('/:classroomId/upload-group-photo', upload.single('file'), async (re
             filename: req.file.originalname,
             contentType: req.file.mimetype,
         });
-
+        console.log("before");
+        console.log(FLASK_API_URL);
         // Call Flask API for face detection
         try {
             const flaskResponse = await axios.post(

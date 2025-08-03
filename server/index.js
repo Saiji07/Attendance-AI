@@ -1,12 +1,16 @@
+
+
+import dotenv from 'dotenv';
+dotenv.config();
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
-import dotenv from 'dotenv';
+
 import mongoose from 'mongoose';
 import { ClerkExpressRequireAuth } from '@clerk/clerk-sdk-node';
 
-dotenv.config();
+
 
 import authRoutes from './routes/auth.js';
 import classroomRoutes from './routes/classrooms.js';
